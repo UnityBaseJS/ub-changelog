@@ -2,6 +2,9 @@
   "name": "ub-changelog-parser",
   "version": "1.0.0",
   "description": "",
+  "bin": {
+    "ub-cl-gen": "src/bin/ub-changelog-parser.js"
+  },
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,6 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "line-reader": "^0.2.4"
+    "commander": "^2.18.0",
+    "line-reader": "^0.2.4",
+    "semver": "^5.5.1"
   }
 }
