@@ -1,5 +1,7 @@
 var EOL = require('os').EOL
-var lineReader = require('line-reader')
+// var lineReader = require('line-reader')
+// var LineByLineReader = require('line-by-line')
+const LineByLine = require('n-readlines')
 
 // patterns
 var semver = /\[?v?([\w\d.-]+\.[\w\d.-]+[a-zA-Z0-9])\]?/
@@ -7,39 +9,24 @@ var date = /.*[ ](\d\d?\d?\d?[-/.]\d\d?[-/.]\d\d?\d?\d?).*/
 var subhead = /^###/
 var listitem = /^[^#\n]../
 
-function parseChangelog (file, callback) {
-  // return a Promise if invoked without a `callback`
-  if (!callback || typeof callback !== 'function') {
-    return doParse(file)
-  }
-
-  // otherwise, parse log and invoke callback
-  doParse(file).then(function (log) {
-    callback(null, log)
-  })
-}
-
-function doParse (file) {
-  var data = {
+function parseChangelog (file) {
+  const liner = new LineByLine(file)
+  const data = {
     log: { versions: [] },
     current: null
   }
+  const hl = handleLine.bind(data)
+  let line
+  while (line = liner.next()) {
+    if (file.includes('amqp-notify')) console.log(line.toString())
+    hl(line.toString('utf8'))
+  }
 
-  // allow `handleLine` to mutate log/current data as `this`.
-  var cb = handleLine.bind(data)
+  pushCurrent(data)
+  data.log.description = clean(data.log.description)
+  if (data.log.description === '') delete data.log.description
 
-  return new Promise(function (resolve, reject) {
-    lineReader.eachLine(file, cb, EOL).then(function () {
-      // push last version into log
-      pushCurrent(data)
-
-      // clean up description
-      data.log.description = clean(data.log.description)
-      if (data.log.description === '') delete data.log.description
-
-      resolve(data.log)
-    })
-  })
+  return data.log
 }
 
 function handleLine (line) {
