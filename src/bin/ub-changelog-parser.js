@@ -3,13 +3,20 @@
 const program = require('commander')
 const { generate } = require('..')
 const fs = require('fs')
-
-const config = (fs.existsSync('./weekly_updates/changelog.config.json'))
-  ? JSON.parse(fs.readFileSync('./weekly_updates/changelog.config.json'))
-  : {}
+const path = require('path')
+const config = fs.existsSync('weekly_updates/changelog.config.json')
+  ? JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'weekly_updates/changelog.config.json')))
+  : {
+    'path': {
+      'include': ['packages'],
+      'exclude': ['node_modules']
+    },
+    'versions': {}
+  }
 
 program
-  .version('0.0.3')
+  .version('0.0.4')
   .description('Generate changelog of changelogs')
+  .option('-p, --path [path]', 'Set paths to changelogs divided by ;')
   .action(() => generate(config))
 program.parse(process.argv)

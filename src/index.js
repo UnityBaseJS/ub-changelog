@@ -1,13 +1,11 @@
 const parseChangelog = require('./parser.js')
 const fs = require('fs')
+const path = require('path')
 const semver = require('semver')
 const changeTypes = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security']
 
 const groupingChangesInFile = (filePath, pkgName, previousVersion = '1.0.0') => {
   const json = parseChangelog(filePath)
-  console.log(json)
-  console.log(pkgName)
-  // console.log(json.versions[0])
   const lastVersion = json.versions[0].version
   const changeGroups = json.versions
     .filter(({ version }) => {
@@ -53,34 +51,68 @@ const renderMD = (json) => {
   return result.join('\n\n')
 }
 
-module.exports.generate = (config) => {
-  const allPacksChanges = []
-  const packageNames = fs.readdirSync('./packages')
-  for (let packName of packageNames) {
-    const changelogPath = `./packages/${packName}/CHANGELOG.md`
-    if (fs.existsSync(changelogPath)) {
-      allPacksChanges.push(groupingChangesInFile(changelogPath, packName, config[packName]))
+const isPackage = packagePath => fs.existsSync(
+  path.isAbsolute(packagePath)
+    ? packagePath
+    : path.resolve(process.cwd(), packagePath, 'CHANGELOG.md')
+)
+
+const getPaths = (includePaths, excludePaths) => {
+  //includePaths.push('.')
+  const paths = []
+  for (let includePath of includePaths) {
+    if (isPackage(includePath) && !excludePaths.includes(includePath)) {
+      paths.push(path.resolve(process.cwd(), includePath, 'CHANGELOG.md'))
+    } else {
+      console.log(includePath)
+
+      const isDirectory = source => fs.lstatSync(source).isDirectory()
+      const getDirectories = source =>
+        fs.readdirSync(source).map(name => path.resolve(source, name)).filter(isDirectory)
+      const packageNames = getDirectories(path.isAbsolute(includePath) ? includePath : path.resolve(process.cwd(), includePath))
+      for (let packName of packageNames) {
+        const changelogPath = path.resolve(process.cwd(), packName, 'CHANGELOG.md')
+        console.log()
+        if (!excludePaths.includes(packName) && fs.existsSync(changelogPath)) {
+          paths.push(changelogPath)
+        }
+      }
     }
   }
+  return paths
+}
 
-  const newConfig = allPacksChanges.reduce((previousValue, currentValue) => {
-    return { ...previousValue, [currentValue.name]: currentValue.version }
-  }, {})
-  const rendered = (renderMD(allPacksChanges))
-  if (!fs.existsSync('./weekly_updates')) {
-    fs.mkdirSync('./weekly_updates')
+const generate = (config) => {
+  const allPaths = getPaths(config.path.include, config.path.exclude)
+
+  const allPacksChanges = allPaths.map(filePath => {
+    const pkgName = path.basename(path.dirname(filePath))
+    const previusVersion = config.versions[pkgName]
+    return groupingChangesInFile(filePath, pkgName, previusVersion)
+  })
+  console.log(allPacksChanges)
+  const renderedChanges = (renderMD(allPacksChanges))
+
+  if (!fs.existsSync(path.resolve(process.cwd(), 'weekly_updates'))) {
+    fs.mkdirSync(path.resolve(process.cwd(), 'weekly_updates'))
   }
   const date = new Date().toLocaleDateString('ru-RU')
-  if (rendered !== '') {
+  if (renderedChanges !== '') {
     try {
-      fs.appendFileSync(`./weekly_updates/global-changelog-${date}.md`, rendered, 'utf8')
+      fs.appendFileSync(path.resolve(process.cwd(), `weekly_updates/global-changelog-${date}.md`), renderedChanges, 'utf8')
       console.log('Changelog generate successfully')
     } catch (err) {
       console.error(err)
     }
 
+    config.versions = allPacksChanges.reduce((previousValue, currentValue) => {
+      const obj = {}
+      obj[currentValue.name] = currentValue.version
+      return Object.assign(previousValue, obj)
+      // return { ...previousValue, [currentValue.name]: currentValue.version }
+    }, {})
     try {
-      fs.writeFileSync('./weekly_updates/changelog.config.json', JSON.stringify(newConfig, null, 2), 'utf8')
+      fs.writeFileSync(path.resolve(process.cwd(), 'weekly_updates/changelog.config.json'), JSON.stringify(config, null, 2), 'utf8')
       console.log('Config updated')
     } catch (err) {
       console.error(err)
@@ -89,3 +121,5 @@ module.exports.generate = (config) => {
     console.log('There is not new changes')
   }
 }
+
+module.exports.generate = generate

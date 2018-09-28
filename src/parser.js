@@ -1,7 +1,5 @@
 var EOL = require('os').EOL
-// var lineReader = require('line-reader')
-// var LineByLineReader = require('line-by-line')
-const LineByLine = require('n-readlines')
+const fs = require('fs')
 
 // patterns
 var semver = /\[?v?([\w\d.-]+\.[\w\d.-]+[a-zA-Z0-9])\]?/
@@ -10,22 +8,19 @@ var subhead = /^###/
 var listitem = /^[^#\n]../
 
 function parseChangelog (file) {
-  const liner = new LineByLine(file)
   const data = {
     log: { versions: [] },
     current: null
   }
   const hl = handleLine.bind(data)
-  let line
-  while (line = liner.next()) {
-    if (file.includes('amqp-notify')) console.log(line.toString())
-    hl(line.toString('utf8'))
-  }
+
+  fs.readFileSync(file).toString().split('\n').forEach(function (line) {
+    hl(line)
+  })
 
   pushCurrent(data)
   data.log.description = clean(data.log.description)
   if (data.log.description === '') delete data.log.description
-
   return data.log
 }
 
