@@ -4,7 +4,7 @@ const path = require('path')
 const semver = require('semver')
 const changeTypes = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security']
 
-const generate = (config) => {
+const generate = (config, destPath) => {
   const escapeStringRegExp = str => {
     const matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g
     return str.replace(matchOperatorsRe, '\\$&')
@@ -20,13 +20,13 @@ const generate = (config) => {
   })
   const renderedChanges = (renderMD(allPacksChanges))
 
-  if (!fs.existsSync(path.resolve(process.cwd(), 'weekly_updates'))) {
-    fs.mkdirSync(path.resolve(process.cwd(), 'weekly_updates'))
+  if (!fs.existsSync(destPath)) {
+    fs.mkdirSync(destPath)
   }
   const date = new Date().toLocaleDateString('ru-RU')
   if (renderedChanges !== '') {
     try {
-      fs.appendFileSync(path.resolve(process.cwd(), `weekly_updates/global-changelog-${date}.md`), renderedChanges, 'utf8')
+      fs.appendFileSync(path.resolve(destPath, `global-changelog-${date}.md`), renderedChanges, 'utf8')
       console.log('Changelog generate successfully')
     } catch (err) {
       console.error(err)
@@ -39,7 +39,7 @@ const generate = (config) => {
     }, {})
     config.versions = Object.assign(config.versions, newVersions)
     try {
-      fs.writeFileSync(path.resolve(process.cwd(), 'weekly_updates/changelog.config.json'), JSON.stringify(config, null, 2), 'utf8')
+      fs.writeFileSync(path.resolve(destPath, 'changelog.config.json'), JSON.stringify(config, null, 2), 'utf8')
       console.log('Config updated')
     } catch (err) {
       console.error(err)
@@ -84,7 +84,7 @@ const getPaths = (includePaths = ['.'], excludePaths) => {
   return paths
 }
 
-const groupingChangesInFile = (filePath, pkgName, previousVersion = '1.0.0') => {
+const groupingChangesInFile = (filePath, pkgName, previousVersion = '0.0.1') => {
   const json = parseChangelog(filePath)
   const lastVersion = json.versions[0].version
   const changeGroups = json.versions
@@ -113,7 +113,7 @@ const renderMD = (json) => {
   const renderPkg = ({ name, version, changeGroups, previousVersion }) => {
     if (Object.keys(changeGroups).length === 0) return ''
     const result = []
-    result.push(`## ${previousVersion === '1.0.0' ? '*New*' : ''} Package ${name}@${previousVersion}->${version}`)
+    result.push(`## ${previousVersion === '0.0.1' ? '*New*' : ''} Package ${name}@${previousVersion}->${version}`)
     for (let changeType of changeTypes) {
       if (changeGroups[changeType]) {
         result.push(`### ${changeType}:`)
