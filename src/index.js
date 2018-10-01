@@ -4,6 +4,86 @@ const path = require('path')
 const semver = require('semver')
 const changeTypes = ['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security']
 
+const generate = (config) => {
+  const escapeStringRegExp = str => {
+    const matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g
+    return str.replace(matchOperatorsRe, '\\$&')
+  }
+
+  const excludeRegExp = new RegExp(escapeStringRegExp(config.path.exclude))
+  const allPaths = getPaths(config.path.include, excludeRegExp)
+
+  const allPacksChanges = allPaths.map(filePath => {
+    const pkgName = path.basename(path.dirname(filePath))
+    const previusVersion = config.versions[pkgName]
+    return groupingChangesInFile(filePath, pkgName, previusVersion)
+  })
+  const renderedChanges = (renderMD(allPacksChanges))
+
+  if (!fs.existsSync(path.resolve(process.cwd(), 'weekly_updates'))) {
+    fs.mkdirSync(path.resolve(process.cwd(), 'weekly_updates'))
+  }
+  const date = new Date().toLocaleDateString('ru-RU')
+  if (renderedChanges !== '') {
+    try {
+      fs.appendFileSync(path.resolve(process.cwd(), `weekly_updates/global-changelog-${date}.md`), renderedChanges, 'utf8')
+      console.log('Changelog generate successfully')
+    } catch (err) {
+      console.error(err)
+    }
+
+    const newVersions = allPacksChanges.reduce((previousValue, currentValue) => {
+      const obj = {}
+      obj[currentValue.name] = currentValue.version
+      return Object.assign(previousValue, obj)
+    }, {})
+    config.versions = Object.assign(config.versions, newVersions)
+    try {
+      fs.writeFileSync(path.resolve(process.cwd(), 'weekly_updates/changelog.config.json'), JSON.stringify(config, null, 2), 'utf8')
+      console.log('Config updated')
+    } catch (err) {
+      console.error(err)
+    }
+  } else {
+    console.log('There is not new changes')
+  }
+}
+
+const getPaths = (includePaths = ['.'], excludePaths) => {
+  const isPackage = packagePath => fs.existsSync(
+    path.isAbsolute(packagePath)
+      ? path.resolve(packagePath, 'CHANGELOG.md')
+      : path.resolve(process.cwd(), packagePath, 'CHANGELOG.md')
+  )
+
+  const isDirectory = source => fs.lstatSync(source).isDirectory()
+  const getDirectories = source =>
+    fs.readdirSync(source).map(name => path.resolve(source, name)).filter(isDirectory)
+  const paths = []
+  for (let includePath of includePaths) {
+    if (isPackage(includePath) && !excludePaths.test(includePath)) {
+      paths.push(path.resolve(process.cwd(), includePath, 'CHANGELOG.md'))
+    } else {
+      const packageNames = getDirectories(path.isAbsolute(includePath) ? includePath : path.resolve(process.cwd(), includePath))
+      for (let packName of packageNames) {
+        if (isPackage(packName) && !excludePaths.test(includePath)) {
+          const changelogPath = path.resolve(process.cwd(), packName, 'CHANGELOG.md')
+          paths.push(changelogPath)
+        } else {
+          const newPackageNames = getDirectories(path.isAbsolute(includePath) ? path.resolve(includePath, packName) : path.resolve(process.cwd(), includePath, packName))
+          for (let newPackName of newPackageNames) {
+            const newChangelogPath = path.resolve(process.cwd(), newPackName, 'CHANGELOG.md')
+            if (!excludePaths.test(newChangelogPath) && fs.existsSync(newChangelogPath)) {
+              paths.push(newChangelogPath)
+            }
+          }
+        }
+      }
+    }
+  }
+  return paths
+}
+
 const groupingChangesInFile = (filePath, pkgName, previousVersion = '1.0.0') => {
   const json = parseChangelog(filePath)
   const lastVersion = json.versions[0].version
@@ -49,77 +129,6 @@ const renderMD = (json) => {
     if (render !== '') result.push(renderPkg(pkg))
   }
   return result.join('\n\n')
-}
-
-const isPackage = packagePath => fs.existsSync(
-  path.isAbsolute(packagePath)
-    ? packagePath
-    : path.resolve(process.cwd(), packagePath, 'CHANGELOG.md')
-)
-
-const getPaths = (includePaths, excludePaths) => {
-  //includePaths.push('.')
-  const paths = []
-  for (let includePath of includePaths) {
-    if (isPackage(includePath) && !excludePaths.includes(includePath)) {
-      paths.push(path.resolve(process.cwd(), includePath, 'CHANGELOG.md'))
-    } else {
-      console.log(includePath)
-
-      const isDirectory = source => fs.lstatSync(source).isDirectory()
-      const getDirectories = source =>
-        fs.readdirSync(source).map(name => path.resolve(source, name)).filter(isDirectory)
-      const packageNames = getDirectories(path.isAbsolute(includePath) ? includePath : path.resolve(process.cwd(), includePath))
-      for (let packName of packageNames) {
-        const changelogPath = path.resolve(process.cwd(), packName, 'CHANGELOG.md')
-        console.log()
-        if (!excludePaths.includes(packName) && fs.existsSync(changelogPath)) {
-          paths.push(changelogPath)
-        }
-      }
-    }
-  }
-  return paths
-}
-
-const generate = (config) => {
-  const allPaths = getPaths(config.path.include, config.path.exclude)
-
-  const allPacksChanges = allPaths.map(filePath => {
-    const pkgName = path.basename(path.dirname(filePath))
-    const previusVersion = config.versions[pkgName]
-    return groupingChangesInFile(filePath, pkgName, previusVersion)
-  })
-  console.log(allPacksChanges)
-  const renderedChanges = (renderMD(allPacksChanges))
-
-  if (!fs.existsSync(path.resolve(process.cwd(), 'weekly_updates'))) {
-    fs.mkdirSync(path.resolve(process.cwd(), 'weekly_updates'))
-  }
-  const date = new Date().toLocaleDateString('ru-RU')
-  if (renderedChanges !== '') {
-    try {
-      fs.appendFileSync(path.resolve(process.cwd(), `weekly_updates/global-changelog-${date}.md`), renderedChanges, 'utf8')
-      console.log('Changelog generate successfully')
-    } catch (err) {
-      console.error(err)
-    }
-
-    config.versions = allPacksChanges.reduce((previousValue, currentValue) => {
-      const obj = {}
-      obj[currentValue.name] = currentValue.version
-      return Object.assign(previousValue, obj)
-      // return { ...previousValue, [currentValue.name]: currentValue.version }
-    }, {})
-    try {
-      fs.writeFileSync(path.resolve(process.cwd(), 'weekly_updates/changelog.config.json'), JSON.stringify(config, null, 2), 'utf8')
-      console.log('Config updated')
-    } catch (err) {
-      console.error(err)
-    }
-  } else {
-    console.log('There is not new changes')
-  }
 }
 
 module.exports.generate = generate
