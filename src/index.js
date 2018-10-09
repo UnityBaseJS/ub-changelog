@@ -113,7 +113,7 @@ const renderMD = (json) => {
   const renderPkg = ({ name, version, changeGroups, previousVersion }) => {
     if (Object.keys(changeGroups).length === 0) return ''
     const result = []
-    result.push(`## ${previousVersion === '0.0.1' ? '*New*' : ''} Package ${name}@${previousVersion}->${version}`)
+    result.push(`# ${previousVersion === '0.0.1' ? '*New*' : ''} Package ${name}@${previousVersion}->${version}`)
     for (let changeType of changeTypes) {
       if (changeGroups[changeType]) {
         result.push(`### ${changeType}:`)
