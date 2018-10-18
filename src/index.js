@@ -23,10 +23,11 @@ const generate = (config, destPath) => {
   if (!fs.existsSync(destPath)) {
     fs.mkdirSync(destPath)
   }
-  const date = new Date().toLocaleDateString('ru-RU')
+  const date = new Date()
+  const stringDate = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
   if (renderedChanges !== '') {
     try {
-      fs.appendFileSync(path.resolve(destPath, `global-changelog-${date}.md`), renderedChanges, 'utf8')
+      fs.appendFileSync(path.resolve(destPath, `global-changelog-${stringDate}.md`), renderedChanges, 'utf8')
       console.log('Changelog generate successfully')
     } catch (err) {
       console.error(err)
