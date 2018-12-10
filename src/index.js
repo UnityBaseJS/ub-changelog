@@ -24,7 +24,7 @@ const generate = (config, destPath) => {
     fs.mkdirSync(destPath)
   }
   const date = new Date()
-  const stringDate = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+  const stringDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
   if (renderedChanges !== '') {
     try {
       fs.appendFileSync(path.resolve(destPath, `global-changelog-${stringDate}.md`), renderedChanges, 'utf8')
@@ -129,7 +129,7 @@ const renderMD = (json) => {
     const render = renderPkg(pkg)
     if (render !== '') result.push(renderPkg(pkg))
   }
-  return result.join('\n\n')
+  return result.join('\n\n') + '\n'
 }
 
 module.exports.generate = generate
