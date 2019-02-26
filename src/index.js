@@ -15,10 +15,10 @@ const generate = (config, destPath) => {
 
   const allPacksChanges = allPaths.map(filePath => {
     const pkgName = path.basename(path.dirname(filePath))
-    const previusVersion = config.versions[pkgName]
-    return groupingChangesInFile(filePath, pkgName, previusVersion)
+    const previousVersion = config.versions[pkgName]
+    return groupingChangesInFile(filePath, pkgName, previousVersion)
   })
-  const renderedChanges = (renderMD(allPacksChanges))
+  const renderedChanges = renderMD(allPacksChanges)
 
   if (!fs.existsSync(destPath)) {
     fs.mkdirSync(destPath)
@@ -127,7 +127,7 @@ const renderMD = (json) => {
   }
   for (const pkg of json) {
     const render = renderPkg(pkg)
-    if (render !== '') result.push(renderPkg(pkg))
+    if (render !== '') result.push(render)
   }
   return result.join('\n\n') + '\n'
 }

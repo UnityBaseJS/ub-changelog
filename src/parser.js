@@ -2,7 +2,7 @@ var EOL = require('os').EOL
 const fs = require('fs')
 
 // patterns
-var semver = /\[?v?([\w\d.-]+\.[\w\d.-]+[a-zA-Z0-9])\]?/
+var semver = /\[?v?([\w\d.-]+\.[\w\d.-]+[a-zA-Z0-9])]?/
 var date = /.*[ ](\d\d?\d?\d?[-/.]\d\d?[-/.]\d\d?\d?\d?).*/
 var subhead = /^###/
 var listitem = /^[^#\n]../
