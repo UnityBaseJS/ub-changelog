@@ -26,7 +26,7 @@ function parseChangelog (file) {
 
 function handleLine (line) {
   // skip line if it's a link label
-  if (line.match(/^\[[^[\]]*\] *?:/)) return
+  if (line.match(/^\[[^[\]]*] *?:/)) return
 
   // set title if it's there
   if (!this.log.title && line.match(/^# ?[^#]/)) {
@@ -107,11 +107,11 @@ function clean (str) {
   if (!str) return ''
 
   // trim
-  str = str.trim()
+  // str = str.trim()
   // remove leading newlines
-  str = str.replace(new RegExp('[' + EOL + ']*'), '')
+  // str = str.replace(new RegExp('[' + EOL + ']*'), '')
   // remove trailing newlines
-  str = str.replace(new RegExp('[' + EOL + ']*$'), '')
+  // str = str.replace(new RegExp('[' + EOL + ']*$'), '')
 
   return str
 }

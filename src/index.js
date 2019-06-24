@@ -61,6 +61,7 @@ const getPaths = (includePaths = ['.'], excludePaths) => {
   const getDirectories = source =>
     fs.readdirSync(source).map(name => path.resolve(source, name)).filter(isDirectory)
   const paths = []
+  // rewrite with recursion
   for (let includePath of includePaths) {
     if (isPackage(includePath) && !excludePaths.test(includePath)) {
       paths.push(path.resolve(process.cwd(), includePath, 'CHANGELOG.md'))
@@ -90,7 +91,12 @@ const groupingChangesInFile = (filePath, pkgName, previousVersion = '0.0.1') => 
   const lastVersion = json.versions[0].version
   const changeGroups = json.versions
     .filter(({ version }) => {
-      return semver.gt(version, previousVersion)
+      try {
+        const compareResult = semver.gt(version, previousVersion)
+        return compareResult
+      } catch (e) {
+        console.log('Problem with parsing changelog -', filePath, ' after ', previousVersion, ' version')
+      }
     })
     .reduce((prev, curr) => {
       for (let changeType of changeTypes) {
