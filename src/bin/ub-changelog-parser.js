@@ -6,8 +6,8 @@ const fs = require('fs')
 const path = require('path')
 
 program
-  .version('0.0.5')
-  .description('Generate changelog of changelogs')
+  .version('0.0.9')
+  .description('Generate one changelog for the time period from all changelog\'s in monorepo')
   .option('-p, --path [path]', 'Set paths to changelogs divided by ;')
   .option('-d, --dest [path]', 'Set destination to output folder')
   .action(() => {

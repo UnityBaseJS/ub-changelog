@@ -34,6 +34,9 @@ function handleLine (line) {
     return
   }
 
+  // skip unreleased
+  if (line.match(/^## \[Unreleased]/)) return
+
   // new version found!
   if (line.match(/^## ?[^#]/)) {
     if (this.current && this.current.title) pushCurrent(this)

@@ -12,7 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "commander": "^2.18.0",
-    "semver": "^5.5.1"
+    "commander": "^4.1.0",
+    "semver": "^7.1.1"
   }
 }

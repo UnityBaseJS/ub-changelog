@@ -50,8 +50,8 @@ const generate = (config, destPath) => {
   }
 }
 
-const getPaths = (includePaths = ['.'], excludePaths) => {
-  const isPackage = packagePath => fs.existsSync(
+const getPaths = (includePaths = ['.'], excludePaths, depth = 2) => {
+  const isHasChangelog = packagePath => fs.existsSync(
     path.isAbsolute(packagePath)
       ? path.resolve(packagePath, 'CHANGELOG.md')
       : path.resolve(process.cwd(), packagePath, 'CHANGELOG.md')
@@ -63,12 +63,12 @@ const getPaths = (includePaths = ['.'], excludePaths) => {
   const paths = []
   // rewrite with recursion
   for (let includePath of includePaths) {
-    if (isPackage(includePath) && !excludePaths.test(includePath)) {
+    if (isHasChangelog(includePath) && !excludePaths.test(includePath)) {
       paths.push(path.resolve(process.cwd(), includePath, 'CHANGELOG.md'))
     } else {
       const packageNames = getDirectories(path.isAbsolute(includePath) ? includePath : path.resolve(process.cwd(), includePath))
       for (let packName of packageNames) {
-        if (isPackage(packName) && !excludePaths.test(includePath)) {
+        if (isHasChangelog(packName) && !excludePaths.test(includePath)) {
           const changelogPath = path.resolve(process.cwd(), packName, 'CHANGELOG.md')
           paths.push(changelogPath)
         } else {
