@@ -1,30 +1,35 @@
-var EOL = require('os').EOL
+/*
+Copyright (c) Nate Goldman ungoldman@gmail.com
+https://github.com/hypermodules/changelog-parser
+
+Adopted by Andrey Kukuruza
+*/
+
+const EOL = require('os').EOL
 const fs = require('fs')
+const chalk = require('chalk')
+
+const changeTypes = new Set(['Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security'])
 
 // patterns
-var semver = /\[?v?([\w\d.-]+\.[\w\d.-]+[a-zA-Z0-9])]?/
-var date = /.*[ ](\d\d?\d?\d?[-/.]\d\d?[-/.]\d\d?\d?\d?).*/
-var subhead = /^###/
-var listitem = /^[^#\n]../
+const semverReqExp = /\[?v?([\w\d.-]+\.[\w\d.-]+[a-zA-Z0-9])]?/
+const dateReqExp = /.*[ ](\d\d?\d?\d?[-/.]\d\d?[-/.]\d\d?\d?\d?).*/
+const subheadReqExp = /^###/
+const listItemReqExp = /^[^#\n]../
 
 function parseChangelog (file) {
   const data = {
     log: { versions: [] },
-    current: null
+    current: null,
+    parseErrors: []
   }
   const hl = handleLine.bind(data)
-
-  fs.readFileSync(file).toString().split('\n').forEach(function (line) {
-    hl(line)
-  })
-
+  fs.readFileSync(file).toString().split('\n').forEach(hl)
   pushCurrent(data)
-  data.log.description = clean(data.log.description)
-  if (data.log.description === '') delete data.log.description
-  return data.log
+  return { versions: data.log.versions, parseErrors: data.parseErrors }
 }
 
-function handleLine (line) {
+function handleLine (line, index) {
   // skip line if it's a link label
   if (line.match(/^\[[^[\]]*] *?:/)) return
 
@@ -43,11 +48,24 @@ function handleLine (line) {
 
     this.current = versionFactory()
 
-    if (semver.exec(line)) this.current.version = semver.exec(line)[1]
+    if (!semverReqExp.exec(line)) {
+      this.parseErrors.push(chalk`
+Line containing the version of the package is expected.
+Received: 
+{red ${line}}
+at {bold ${index + 1}} line`)
+    }
+    if (semverReqExp.exec(line)) this.current.version = semverReqExp.exec(line)[1]
 
     this.current.title = line.substring(2).trim()
-
-    if (this.current.title && date.exec(this.current.title)) this.current.date = date.exec(this.current.title)[1]
+    if (this.current.title && !dateReqExp.exec(this.current.title)) {
+      this.parseErrors.push(chalk`
+Line containing the date of the package publish is expected.
+Received: 
+{red ${line}}
+at {bold ${index + 1}} line`)
+    }
+    if (this.current.title && dateReqExp.exec(this.current.title)) this.current.date = dateReqExp.exec(this.current.title)[1]
 
     return
   }
@@ -56,12 +74,18 @@ function handleLine (line) {
   if (this.current) {
     this.current.body += line + EOL
 
-    // handle case where current line is a 'subhead':
-    // - 'handleize' subhead.
-    // - add subhead to 'parsed' data if not already present.
-    if (subhead.exec(line)) {
-      var key = line.replace('###', '').trim()
-
+    // handle case where current line is a 'subheadReqExp':
+    // - 'handleize' subheadReqExp.
+    // - add subheadReqExp to 'parsed' data if not already present.
+    if (subheadReqExp.exec(line)) {
+      const key = line.replace('###', '').trim()
+      if (!changeTypes.has(key)) {
+        this.parseErrors.push(chalk`
+Line containing one of 'Added', 'Changed', 'Deprecated', 'Removed', 'Fixed', 'Security' is expected.
+Received: 
+{red ${line}}
+at {bold ${index + 1}} line`)
+      }
       if (!this.current.parsed[key]) {
         this.current.parsed[key] = []
         this.current._private.activeSubhead = key
@@ -69,11 +93,11 @@ function handleLine (line) {
     }
 
     // handle case where current line is a 'list item':
-    if (listitem.exec(line)) {
+    if (listItemReqExp.exec(line)) {
       // add line to 'catch all' array
       this.current.parsed._.push(line)
 
-      // add line to 'active subhead' if applicable (eg. 'Added', 'Changed', etc.)
+      // add line to 'active subheadReqExp' if applicable (eg. 'Added', 'Changed', etc.)
       if (this.current._private.activeSubhead) {
         this.current.parsed[this.current._private.activeSubhead].push(line)
       }
@@ -101,22 +125,7 @@ function versionFactory () {
 function pushCurrent (data) {
   // remove private properties
   delete data.current._private
-
-  data.current.body = clean(data.current.body)
   data.log.versions.push(data.current)
-}
-
-function clean (str) {
-  if (!str) return ''
-
-  // trim
-  // str = str.trim()
-  // remove leading newlines
-  // str = str.replace(new RegExp('[' + EOL + ']*'), '')
-  // remove trailing newlines
-  // str = str.replace(new RegExp('[' + EOL + ']*$'), '')
-
-  return str
 }
 
 module.exports = parseChangelog

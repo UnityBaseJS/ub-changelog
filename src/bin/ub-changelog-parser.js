@@ -1,35 +1,65 @@
 #!/usr/bin/env node
 
 const program = require('commander')
-const { generate } = require('..')
+const { generate, checkErrors } = require('..')
 const fs = require('fs')
 const path = require('path')
-
+const { dateFromYYYYMMDD } = require('../utils')
+const nextYear = new Date().getFullYear() + 1
 program
-  .version('0.0.9')
-  .description('Generate one changelog for the time period from all changelog\'s in monorepo')
-  .option('-p, --path [path]', 'Set paths to changelogs divided by ;')
-  .option('-d, --dest [path]', 'Set destination to output folder')
-  .action(() => {
-    let destPath
-    if (program.dest) {
-      if (!path.isAbsolute(program.dest)) {
-        destPath = path.resolve(process.cwd(), program.dest)
-      } else {
-        destPath = program.dest
-      }
-    } else {
-      destPath = path.resolve(process.cwd(), 'weekly_updates')
-    }
-    const config = fs.existsSync(path.resolve(destPath, 'changelog.config.json'))
-      ? JSON.parse(fs.readFileSync(path.resolve(destPath, 'changelog.config.json')))
-      : {
-        'path': {
-          'include': ['.'],
-          'exclude': 'node_modules'
-        },
-        'versions': {}
-      }
-    generate(config, destPath)
-  })
-program.parse(process.argv)
+  .version('1.0.0')
+  .description('Generate one changelog for the time period from all changelog\'s in monorepo.')
+  .option('-p, --path <includePaths>', 'set paths to changelogs divided by ";"\nif not set get paths from `changelog.config.json`.')
+  .option('-e, --exclude <excludePaths>', 'set paths to exclude divided by ";"\nif not set get paths from `changelog.config.json`.')
+  .option('--from <fromDate>',
+    'set older date for time range for changes in YYYY-MM-DD format\nif not set supposed to get log from first entry.',
+    '1970-1-1')
+  .option('--to <toDate>',
+    'set newer date for time range for changes in YYYY-MM-DD format\nif not set supposed to get log to last entry.',
+    `${nextYear}-1-1`)
+  .option('-t, --test', 'dry run to test correctness of all changelogs.')
+  .parse(process.argv)
+console.log(program)
+let includePaths
+let excludePaths
+
+const configPath = path.resolve(process.cwd(), 'changelog.config.json')
+console.log(program.path)
+if (!program.path) {
+  if (!fs.existsSync(configPath)) {
+    console.log('Please set paths to find changelogs by `-p` or create `changelog.config.json`')
+    return
+  }
+
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+  if (!config.pathToPackages || !config.pathToPackages.include) {
+    console.log('`changelog.config.json` must contain array with paths in pathToPackages.include')
+    return
+  }
+
+  includePaths = config.pathToPackages.include
+} else {
+  includePaths = program.path.split(';')
+}
+
+if (!program.exclude) {
+  if (!fs.existsSync(configPath)) {
+    return
+  }
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+  if (!config.pathToPackages || !config.pathToPackages.exclude) {
+    return
+  }
+  excludePaths = config.pathToPackages.exclude
+} else {
+  excludePaths = program.exclude.split(';')
+}
+
+if (program.test) {
+  checkErrors(includePaths, excludePaths)
+  return
+}
+const fromDate = dateFromYYYYMMDD(program.from)
+const toDate = dateFromYYYYMMDD(program.to)
+const generatedCL = generate(includePaths, excludePaths, fromDate, toDate)
+console.log(generatedCL)
