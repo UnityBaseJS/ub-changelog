@@ -1,6 +1,6 @@
 {
   "name": "ub-changelog-parser",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Set of tools for parse changelogs in multi-repo, and generate one from them",
   "bin": {
     "ub-cl-gen": "src/bin/ub-changelog-parser.js"
