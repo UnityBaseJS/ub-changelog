@@ -41,7 +41,7 @@ ub-cl-gen --from 2019-11-01 --to 2020-02-01
 
 ### API
 ```js
-const { generate, checkErrors, getChangelogPaths, getParsedChangelogs, getParseErrors } = require('ub-changelog-parser')
+const { generate, checkErrors, getChangelogPaths, getParsedChangelogs, getParseErrors, renderToMD } = require('ub-changelog-parser')
 ```
 Generating one changelog for all provided packages for date range
 ```js
@@ -72,4 +72,9 @@ const errors = getParseErrors(parsedChangelogs)
 Filtering by date and grouping by changes
 ```js
 const allPacksChanges = parsedChangelogs.map(cl => groupingChanges(filterLogByDate(cl, fromDate, toDate)))
+```
+
+Render grouped changelogs to markdown
+```js
+const renderedChanges = renderToMD(allPacksChanges)
 ```

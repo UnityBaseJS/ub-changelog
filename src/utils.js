@@ -129,7 +129,7 @@ const groupingChanges = changelog => {
  * @return {string}
  */
 const renderVersion = ({ version, date, log }) => {
-  return `###### [${version}] ${date}\n${log.join('\n')}`
+  return `###### ~${version}~ ~${date}~ \n${log.join('\n')}`
 }
 
 const renderGroupedPkg = ({ pkgName, versions }) => {
@@ -140,13 +140,12 @@ const renderGroupedPkg = ({ pkgName, versions }) => {
 }
 
 /**
- *
+ * Render grouped changelogs to markdown
  * @param {Array} changelogs
  * @return {string}
  */
-const renderMD = changelogs =>
-  changelogs.filter(({ _, versions }) => Object.keys(versions).length > 0)
-    .map(renderGroupedPkg).join('\n')
+const renderToMD = changelogs =>
+  changelogs.map(renderGroupedPkg).join('\n')
 
 /**
  * Convert date in yyyy-mm-dd format to js Date object
@@ -179,6 +178,6 @@ module.exports = {
   getParseErrors,
   filterLogByDate,
   groupingChanges,
-  renderMD,
+  renderToMD,
   dateFromYYYYMMDD
 }

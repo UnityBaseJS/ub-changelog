@@ -19,12 +19,10 @@ program
     `${nextYear}-1-1`)
   .option('-t, --test', 'dry run to test correctness of all changelogs.')
   .parse(process.argv)
-console.log(program)
 let includePaths
 let excludePaths
 
 const configPath = path.resolve(process.cwd(), 'changelog.config.json')
-console.log(program.path)
 if (!program.path) {
   if (!fs.existsSync(configPath)) {
     console.log('Please set paths to find changelogs by `-p` or create `changelog.config.json`')
@@ -62,4 +60,4 @@ if (program.test) {
 const fromDate = dateFromYYYYMMDD(program.from)
 const toDate = dateFromYYYYMMDD(program.to)
 const generatedCL = generate(includePaths, excludePaths, fromDate, toDate)
-console.log(generatedCL)
+if (generatedCL !== '') console.log(generatedCL)

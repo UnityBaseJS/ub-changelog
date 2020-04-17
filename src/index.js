@@ -1,7 +1,7 @@
 const {
   getChangelogPaths, getParsedChangelogs,
   getParseErrors, filterLogByDate,
-  groupingChanges, renderMD
+  groupingChanges, renderToMD
 } = require('./utils')
 
 /**
@@ -19,9 +19,11 @@ const generate = (includePaths, excludePaths, fromDate = new Date(1970, 1, 1), t
     console.error(errors)
     throw new Error('Parse errors')
   }
-  const allPacksChanges = parsedChangelogs.map(cl => groupingChanges(filterLogByDate(cl, fromDate, toDate)))
+  const allPacksChanges = parsedChangelogs
+    .map(cl => groupingChanges(filterLogByDate(cl, fromDate, toDate)))
+    .filter(({ versions }) => Object.keys(versions).length > 0)
 
-  const renderedChanges = renderMD(allPacksChanges)
+  const renderedChanges = renderToMD(allPacksChanges)
   return renderedChanges
 }
 /**
