@@ -1,34 +1,37 @@
+const fs = require('fs')
 const chalk = require('chalk')
 const glob = require('glob')
 const path = require('path')
+const Mustache = require('mustache')
 
 const parseChangelog = require('./parser.js')
+
 /**
- * @typedef {Object} Changelog - object with parsed changelog. Main info in `versions`
- * @property {string} pkgName - Name of package which changelog belong to
+ * @typedef {Object} ParsedChangelog - object with parsed changelog. Main info in `versions`
+ * @property {string} name - name of package which changelog belong to
+ * @property {string} link - any link to package which changelog belong to
  * @property {Array.<Version>} versions - parsed changes grouped by package version
  * @property {Array.<string>} parseErrors - errors witch happen while parse changelog in string format
  */
-
 /**
  * @typedef {Object} Version - object with parsed log to changes in some version. Main info in `parsed`
  * @property {string} version - version of package which log belong to in semver format
  * @property {string} title - title of log, possibly with version and date (like ## [1.0.10] - 2018-09-26)
  * @property {string} date - date of publish in yyyy-mm-dd format
- * @property {string} body - unparsed body of log (###Added ... ###Changed ...)
+ * @property {string} body - unparsed body of log (### Added ... ### Changed ...)
  * @property {Object} parsed - grouped by types changes
  */
-
 /**
- * @typedef {Object} VersionsGroupedByChanges - object with parsed changelog, with few versions, but grouped by changes
- * @property {Array.<VersionWithOneTypeOfChanges>} Added
- * @property {Array.<VersionWithOneTypeOfChanges>} Changed
- * @property {Array.<VersionWithOneTypeOfChanges>} Deprecated
- * @property {Array.<VersionWithOneTypeOfChanges>} Removed
- * @property {Array.<VersionWithOneTypeOfChanges>} Fixed
- * @property {Array.<VersionWithOneTypeOfChanges>} Security
+ * @typedef {Object} GroupedChangelog - object with parsed changelog, with few versions, but grouped by changes
+ * @property {string} name - name of package which changelog belong to
+ * @property {string} link - any link to package which changelog belong to
+ * @property {Array.<GroupedChangelogItem>} changes - parsed changes grouped by package version
  */
-
+/**
+ * @typedef {Object} GroupedChangelogItem
+ * @property {string} type - one of Added|Changed|Deprecated|Removed|Fixed|Security
+ * @property {Array.<VersionWithOneTypeOfChanges>} versions
+ */
 /**
  * @typedef {Object} VersionWithOneTypeOfChanges - object with parsed log to changes in some version.
  * Difference from `Version` is that `VersionForGroupedByChanges` contain log only for one type of changes ('Added', 'Changed'...)
@@ -55,35 +58,35 @@ const getChangelogPaths = (includePaths = ['.'], excludePaths = []) =>
 /**
  * Parse all changelogs by their path's
  * @param {Array.<string>} pathsToChangelogs
- * @returns {Array.<Changelog>}
+ * @returns {Array.<ParsedChangelog>}
  */
 const getParsedChangelogs = pathsToChangelogs =>
   pathsToChangelogs.map(filePath => {
-    const pkgName = path.basename(path.dirname(filePath))
+    const { name, repository: link } = getPackageInfo(path.dirname(filePath))
     const { versions, parseErrors } = parseChangelog(filePath)
-    return { pkgName, versions, parseErrors }
+    return { name, link, versions, parseErrors }
   })
 /**
  * Generate human-readable report with errors that occurred during parsing changelogs
  * return '' if no one error happen
- * @param {Array.<Changelog>} parsedChangelogs
+ * @param {Array.<ParsedChangelog>} parsedChangelogs
  * @returns {string}
  */
 const getParseErrors = parsedChangelogs =>
   parsedChangelogs
     .filter(({ parseErrors }) => parseErrors.length > 0)
-    .map(({ pkgName, parseErrors }) => {
-      return chalk`Problem(s) with parsing {bold ${pkgName}}:` +
+    .map(({ name, parseErrors }) => {
+      return chalk`Problem(s) with parsing {bold ${name}}:` +
         parseErrors.join('\n')
     })
     .join('\n\n\n')
 
 /**
  * Filter package versions by date range. For 'toDate' comparison is not strict.
- * @param {Changelog} changelog - parsed changelog
+ * @param {ParsedChangelog} changelog - parsed changelog
  * @param {Date} fromDate - older date. If not set supposed to get log from first entry
  * @param {Date} toDate - newer date. If not set supposed to get to last entry. Comparison is not strict
- * @returns {Changelog}
+ * @returns {ParsedChangelog}
  */
 const filterLogByDate = (changelog, fromDate = new Date(1970, 1, 1), toDate = new Date()) => {
   const versions = changelog.versions.filter(({ date: stringDate }) => {
@@ -95,8 +98,8 @@ const filterLogByDate = (changelog, fromDate = new Date(1970, 1, 1), toDate = ne
 
 /**
  * Grouping Array.<ParsedVersion> in changelog by changeTypes
- * @param {Changelog} changelog - parsed changes grouped by package version
- * @return {Object}
+ * @param {ParsedChangelog} changelog - parsed changes grouped by package version
+ * @return {GroupedChangelog}
  */
 const groupingChanges = changelog => {
   const versionsGroupedByChanges = {
@@ -118,34 +121,33 @@ const groupingChanges = changelog => {
     }
   }
   const versions = filterEmptyArrayProperties(versionsGroupedByChanges)
-  return { ...changelog, versions }
+  const changes = Object.entries(versions).map(([type, versions]) => ({ type, versions }))
+  return { ...changelog, changes }
+}
+/**
+ * Compare function for sorting packages by names and order info
+ * If name not stored in info sorting does not occur
+ * @param {string} aName
+ * @param {string} bName
+ * @param {Object} order
+ * @return {number}
+ */
+const sortPackagesByNames = (aName, bName, order) => {
+  const aOrder = order[aName] ? order[aName] : 0
+  const bOrder = order[bName] ? order[bName] : 0
+  return bOrder - aOrder
 }
 
 /**
- * Convert VersionWithOneTypeOfChanges to string in markdown format
- * @param {string} version
- * @param {string} date
- * @param {Array.<string>} log
+ * Render grouped changelogs to markdown using template
+ * @param {GroupedChangelog} packages
+ * @param {string} templatePath
  * @return {string}
  */
-const renderVersion = ({ version, date, log }) => {
-  return `###### ~${version}~ ~${date}~ \n${log.join('\n')}`
-}
-
-const renderGroupedPkg = ({ pkgName, versions }) => {
-  const renderedVers = Object.entries(versions)
-    .map(([changeType, vers]) => `#### ${changeType}\n` + vers.map(renderVersion).join('\n') + '\n')
-    .join('\n')
-  return `## ${pkgName}\n${renderedVers}\n`
-}
-
-/**
- * Render grouped changelogs to markdown
- * @param {Array} changelogs
- * @return {string}
- */
-const renderToMD = changelogs =>
-  changelogs.map(renderGroupedPkg).join('\n')
+const renderToMD = (
+  packages,
+  templatePath = path.join(__dirname, 'templates', 'allPacksChanges.mustache')
+) => Mustache.render(fs.readFileSync(templatePath, 'utf-8'), { packages })
 
 /**
  * Convert date in yyyy-mm-dd format to js Date object
@@ -155,6 +157,14 @@ const renderToMD = changelogs =>
 const dateFromYYYYMMDD = stringDate => {
   const [y, m, d] = stringDate.split('-')
   return new Date(Number(y), m - 1, Number(d))
+}
+
+const getPackageInfo = pathToPackage => {
+  const pathToJson = path.join(pathToPackage, 'package.json')
+  const packageInfo = fs.existsSync(pathToJson)
+    ? JSON.parse(fs.readFileSync(pathToJson, 'utf-8'))
+    : { name: path.basename(pathToPackage), repository: '' }
+  return packageInfo
 }
 
 /**
@@ -178,6 +188,7 @@ module.exports = {
   getParseErrors,
   filterLogByDate,
   groupingChanges,
+  sortPackagesByNames,
   renderToMD,
   dateFromYYYYMMDD
 }

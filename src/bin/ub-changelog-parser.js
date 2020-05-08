@@ -19,17 +19,23 @@ program
     `${nextYear}-1-1`)
   .option('-t, --test', 'dry run to test correctness of all changelogs.')
   .parse(process.argv)
+
 let includePaths
 let excludePaths
 
 const configPath = path.resolve(process.cwd(), 'changelog.config.json')
+const configExist = fs.existsSync(configPath)
+let config = {}
+if (configExist) {
+  config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+}
+
 if (!program.path) {
-  if (!fs.existsSync(configPath)) {
+  if (!configExist) {
     console.log('Please set paths to find changelogs by `-p` or create `changelog.config.json`')
     return
   }
 
-  const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
   if (!config.pathToPackages || !config.pathToPackages.include) {
     console.log('`changelog.config.json` must contain array with paths in pathToPackages.include')
     return
@@ -41,7 +47,7 @@ if (!program.path) {
 }
 
 if (!program.exclude) {
-  if (!fs.existsSync(configPath)) {
+  if (!configExist) {
     return
   }
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
@@ -57,7 +63,8 @@ if (program.test) {
   checkErrors(includePaths, excludePaths)
   return
 }
+
 const fromDate = dateFromYYYYMMDD(program.from)
 const toDate = dateFromYYYYMMDD(program.to)
-const generatedCL = generate(includePaths, excludePaths, fromDate, toDate)
+const generatedCL = generate(includePaths, excludePaths, fromDate, toDate, config.order)
 if (generatedCL !== '') console.log(generatedCL)

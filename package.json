@@ -9,14 +9,16 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Andrey Kukuruza <andreyku6@gmail.com>",
   "license": "ISC",
   "dependencies": {
     "chalk": "^4.0.0",
-    "commander": "^5.0.0",
-    "glob": "^7.1.6"
+    "commander": "^5.1.0",
+    "glob": "^7.1.6",
+    "mustache": "^4.0.1"
   },
   "devDependencies": {
     "standard": "^14.3.3"
-  }
+  },
+  "keywords": ["changelog", "parser"]
 }

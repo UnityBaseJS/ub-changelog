@@ -1,7 +1,7 @@
 const {
   getChangelogPaths, getParsedChangelogs,
   getParseErrors, filterLogByDate,
-  groupingChanges, renderToMD
+  groupingChanges, sortPackagesByNames, renderToMD
 } = require('./utils')
 
 /**
@@ -10,8 +10,9 @@ const {
  * @param {Array.<string>} excludePaths
  * @param {Date} fromDate
  * @param {Date} toDate
+ * @param {Object} order - key-value info for ordering packages
  */
-const generate = (includePaths, excludePaths, fromDate = new Date(1970, 1, 1), toDate = new Date()) => {
+const generate = (includePaths, excludePaths, fromDate = new Date(1970, 1, 1), toDate = new Date(), order) => {
   const pathsToChangelogs = getChangelogPaths(includePaths, excludePaths)
   const parsedChangelogs = getParsedChangelogs(pathsToChangelogs)
   const errors = getParseErrors(parsedChangelogs)
@@ -20,9 +21,13 @@ const generate = (includePaths, excludePaths, fromDate = new Date(1970, 1, 1), t
     throw new Error('Parse errors')
   }
   const allPacksChanges = parsedChangelogs
-    .map(cl => groupingChanges(filterLogByDate(cl, fromDate, toDate)))
-    .filter(({ versions }) => Object.keys(versions).length > 0)
+    .map(cl => filterLogByDate(cl, fromDate, toDate))
+    .map(cl => groupingChanges(cl))
+    .filter(({ changes }) => changes.length > 0)
 
+  if (order) {
+    allPacksChanges.sort((a, b) => sortPackagesByNames(a.name, b.name, order))
+  }
   const renderedChanges = renderToMD(allPacksChanges)
   return renderedChanges
 }

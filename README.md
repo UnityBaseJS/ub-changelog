@@ -8,11 +8,18 @@ So expect `CHANGELOG.md` in provided folder or/and in one-depth subfolders.
 {
   "pathToPackages": {
     "include": [
-      "./packages"
+      "./packages",
+      "../ub-server"
     ],
     "exclude": [
-      "./packages/update-changelog/*"
+      "./packages/update-changelog/*",
+      "../ub-server/package/*",
+      "../ub-server/ubuntu/*"
     ]
+  },
+  "order": {
+    "ub-server": 100,
+    "@unitybase/adminui-vue": 50
   }
 }
 ```
@@ -45,7 +52,7 @@ const { generate, checkErrors, getChangelogPaths, getParsedChangelogs, getParseE
 ```
 Generating one changelog for all provided packages for date range
 ```js
-const generatedCL = generate(includePaths, excludePaths, fromDate, toDate)
+const generatedCL = generate(includePaths, excludePaths, fromDate, toDate, order)
 ```
 
 Checking correctness of all changelogs for parse
@@ -69,12 +76,16 @@ Generate human-readable report with errors that occurred during parsing changelo
 const errors = getParseErrors(parsedChangelogs)
 ```
 
-Filtering by date and grouping by changes
+Filtering by date, grouping by changes, filter and sorting
 ```js
-const allPacksChanges = parsedChangelogs.map(cl => groupingChanges(filterLogByDate(cl, fromDate, toDate)))
+const allPacksChanges = parsedChangelogs
+  .map(cl => filterLogByDate(cl, fromDate, toDate))
+  .map(cl => groupingChanges(cl))
+  .filter(({ changes }) => changes.length > 0)
+  .sort((a, b) => sortPackagesByNames(a.name, b.name, order))
 ```
 
-Render grouped changelogs to markdown
+Render grouped changelogs to markdown using mustache template
 ```js
-const renderedChanges = renderToMD(allPacksChanges)
+const renderedChanges = renderToMD(allPacksChanges, templatePath)
 ```
